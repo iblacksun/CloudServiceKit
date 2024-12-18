@@ -21,7 +21,7 @@ public protocol CloudServiceOAuth {
 /// The base connector provided by CloudService.
 /// CloudServiceKit provides a default connector for each cloud service, such as `DropboxConnector`.
 /// You can implement your own connector if you want customizations.
-public class CloudServiceConnector: CloudServiceOAuth {
+open class CloudServiceConnector: CloudServiceOAuth {
     
     /// subclass must provide authorizeUrl
     public var authorizeUrl: String { return "" }
@@ -30,9 +30,12 @@ public class CloudServiceConnector: CloudServiceOAuth {
     public var accessTokenUrl: String { return "" }
     
     /// subclass can provide more custom parameters
-    public var authorizeParameters: OAuthSwift.Parameters { return [:] }
+    open var authorizeParameters: OAuthSwift.Parameters { return [:] }
+    open var tokenParameters: OAuthSwift.Parameters { return [:] }
     
-    public var tokenParameters: OAuthSwift.Parameters { return [:] }
+    open var codeVerifier: String? { nil }
+    open var codeChallenge: String? { nil }
+    open var codeChallengeMethod: String? { nil }
     
     public var scope: String = ""
     
@@ -79,14 +82,30 @@ public class CloudServiceConnector: CloudServiceOAuth {
         oauth.authorizeURLHandler = customURLHandler ?? SafariURLHandler(viewController: viewController, oauthSwift: oauth)
         #endif
         self.oauth = oauth
-        _ = oauth.authorize(withCallbackURL: URL(string: callbackUrl), scope: scope, state: state, parameters: authorizeParameters, completionHandler: { result in
-            switch result {
-            case .success(let token):
-                completion(.success(token))
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        })
+        if let codeVerifier, let codeChallenge, let codeChallengeMethod,
+           let callback = URL(string: callbackUrl) {
+            _ = oauth.authorize(withCallbackURL: callback, scope: scope, state: state,
+                                codeChallenge: codeChallenge,
+                                codeChallengeMethod: codeChallengeMethod,
+                                codeVerifier: codeVerifier,
+                                completionHandler: { result in
+                switch result {
+                case .success(let token):
+                    completion(.success(token))
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            })
+        } else {
+            _ = oauth.authorize(withCallbackURL: URL(string: callbackUrl), scope: scope, state: state, parameters: authorizeParameters, completionHandler: { result in
+                switch result {
+                case .success(let token):
+                    completion(.success(token))
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            })
+        }
     }
     
     /// Show a modal view  to authenticate a user through a Web Service
@@ -116,14 +135,30 @@ public class CloudServiceConnector: CloudServiceOAuth {
                                                                   prefersEphemeralWebBrowserSession: prefersEphemeralWebBrowserSession)
         #endif
         self.oauth = oauth
-        _ = oauth.authorize(withCallbackURL: URL(string: callbackUrl), scope: scope, state: state, parameters: authorizeParameters, completionHandler: { result in
-            switch result {
-            case .success(let token):
-                completion(.success(token))
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        })
+        if let codeVerifier, let codeChallenge, let codeChallengeMethod,
+           let callback = URL(string: callbackUrl) {
+            _ = oauth.authorize(withCallbackURL: callback, scope: scope, state: state,
+                                codeChallenge: codeChallenge,
+                                codeChallengeMethod: codeChallengeMethod,
+                                codeVerifier: codeVerifier,
+                                completionHandler: { result in
+                switch result {
+                case .success(let token):
+                    completion(.success(token))
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            })
+        } else {
+            _ = oauth.authorize(withCallbackURL: URL(string: callbackUrl), scope: scope, state: state, parameters: authorizeParameters, completionHandler: { result in
+                switch result {
+                case .success(let token):
+                    completion(.success(token))
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            })
+        }
     }
     
     public func renewToken(with refreshToken: String, completion: @escaping (Result<OAuthSwift.TokenSuccess, Error>) -> Void) {
@@ -218,7 +253,7 @@ public class BoxConnector: CloudServiceConnector {
 }
 
 // MARK: - DropboxConnector
-public class DropboxConnector: CloudServiceConnector {
+open class DropboxConnector: CloudServiceConnector {
     
     public override var authorizeUrl: String {
         return "https://www.dropbox.com/oauth2/authorize?token_access_type=offline"
